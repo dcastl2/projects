@@ -1,0 +1,5 @@
+for zip in `ls $zips 2> /dev/null`
+do
+	s_ex "Unzipping $zip" "unzip $zip"
+	cp `find . | grep $sources` .
+done

@@ -1,0 +1,223 @@
+\documentclass{article}
+
+\title{The Autograde User's Manual}
+\author{Dennis Castleberry}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{\baselineskip}
+
+\begin{document}
+
+\maketitle 
+\pagebreak
+
+\tableofcontents 
+\pagebreak
+
+\section{Introduction}
+
+Autograde is an automated grading system for programming exercises.  It
+currently has modules written for Java, C, C++, and MATLAB, and could
+potentially have modules written for other languages.  Autograde itself is
+written in Linux shell and Java. 
+
+\subsection{Requirements}
+
+The following is a list of software required by Autograde:
+
+\begin{itemize}
+\item GNU coreutils
+\item OpenJDK
+\item smartlog
+\end{itemize}
+
+In addition, the directory structure required by autograde is like so:
+
+\begin{verbatim}
+ grading/
+  progN/
+   csXXXXYY/
+    code.zip
+\end{verbatim}
+
+The script can now be invoked from any directory.
+
+\subsection{What Autograde Can Do}
+
+Autograde can do the following batch options, in order:
+
+\begin{itemize}
+\item Pre-process
+\item Compile
+\item Execute
+\item Post-process
+\item Auto-evaluate
+\end{itemize}
+
+Pre-processing consists of making any substitutions or changes to the code via
+a user-supplied script.  Compilation is the act of invoking the
+language-dependent compiler on the code to create an output file.  Execution
+runs the code, allowing the user to automatically feed in any desired input
+contained in a feed file.  Post-processing is copying the codes, object files,
+run outputs, and error logs into separate directories for evaluation.
+
+Autograde also allows for automatic evaluation.
+
+
+Manual evaluation is supported by a clean directory structure with consistent
+ID-labelled items per-directory.  Any type of custom evaluation is easily
+scriptable.  Automatic evaluation utilizes a user-supplied specification for
+parsing and grading items inside the configuration directory,
+\texttt{~/.autograde}.
+
+\subsection{What Autograde Cannot Do}
+
+Autograde cannot evaluate any form of output that is not able to be parsed. So
+it cannot evaluate graphs, produced audio, or user interfaces. However,
+post-processing module may be added which does this evaluation (using e.g.  the
+\texttt{diff} command.
+
+\section{The Autograde Shell Script}
+
+The Autograde shell script does the bulk of the pre-evaluation work: the
+pre-processing, compilation, execution, and bifurcation of output and error
+into separate directories. It alos interfaces with the rest of the Autograde
+code, in particular the Java parser-grader.
+
+After you run the Autograde deployment script, a few files will be added
+to your directory:
+
+\begin{verbatim}
+ bin:
+  autograde
+ lib:
+  smartlog:
+   lib
+   smartlog.sh
+   smartcheck.sh
+   smartexec.sh
+ src:
+  ParseGrader.java
+  ParseGrader.class
+\end{verbatim}
+
+Since \texttt{~/bin} is in your \texttt{\$PATH}, you should be able to call
+autograde from the \texttt{grading/} directory, like so:
+
+\begin{verbatim}
+ csXXXX_yyy@classes:/classes/csXXXX/csXXXX_yyy/grading$ autograde
+\end{verbatim}
+
+\subsection{Options}
+
+Options to \texttt{\textbf{autograde}} are enabled in \texttt{autograde.conf}
+files in: (1) autograde configuration directory, (2) the assignment directory,
+and (3) the module directory. Base-level configuration sets the grading dir,
+root dir, and so forth. Module-level configuration sets source file extensions,
+object file extensions, etc. Assignment-level configuration sets the module
+name, and other user-specified variables. 
+
+Input can be enabled by editing the execution stage to run while piping
+input in.  For example if there is an input file ~/input.txt, it could
+be piped through a \texttt{java} execution by overriding the \texttt{java.exec}
+execution script in the assignment directory to include:
+
+\begin{verbatim}
+ java $classname | cat ~/input.txt
+\end{verbatim}
+
+If the user wishes to omit a stage, a blank override file may be placed
+in the assignment-level directory.
+
+
+\subsection{The Fully-Automatic Grader}
+
+Running agrade as follows:
+
+\begin{verbatim}
+ autograde 
+\end{verbatim}
+
+would open the automatic grader for the \texttt{output/} directory on
+\texttt{prog1}. The automatic grader utilizes the grading specification in the
+\texttt{spec/} directory.
+
+\section{The Autograde Parser-Grader}
+\subsection{Grading Specification}
+
+An example of the directory structure is as follow:
+
+\begin{verbatim}
+ ~/.autograde
+   autograde.conf
+   assignment/
+     1240/
+      prog1/
+        autograde.conf
+        matlab.exec   
+   module/
+     matlab/    
+       matlab.pre
+       matlab.comp
+       matlab.exec
+       matlab.post
+\end{verbatim}
+
+Thus each course has its own directory within the assignment-level configuration.
+
+
+\subsection{Grading Grammars}
+
+In order to grade by parsing, rules must be defined for parsing parts of the
+grading item. These rules are contained in a file named
+\texttt{\emph{item}.peg}, where \emph{item} is one of source, output, error,
+etc.  Consider the following code output:
+
+\begin{verbatim}
+ Hello, world! 
+\end{verbatim}
+
+Other outputs may be acceptable, including those for which `hello' or 'world'
+have or lack initial caps. An output may lack a comma, or use a period in place
+of the exclamation mark. The following grammar rule captures these possible
+outputs:
+
+\begin{verbatim}
+ hello = (H|h)ello(,|) (W|w)orld(!|)
+\end{verbatim}
+
+In this example, the rule name is \texttt{hello}.  The expression is given on
+the right-hand side of the equals sign.  Parentheses are used to group
+subexpressions.  The \texttt{|} operator is used for disjunction.  In the
+example, \texttt{(H|h)} is used to cover both `Hello' and `hello' as correct
+outputs. Likewise \texttt{(,|)} covers either the presence or lack of a comma.
+
+\subsection{Grading Schemes}
+
+A grading scheme file tells how many points to award to the subitem when 
+the grammar expressions are successfully parsed. A grading scheme file
+for the example above may look like:
+
+\begin{verbatim}
+ 10: hello; "'Hello, world!' output was not correct"
+\end{verbatim}
+
+The number 10 refers to the number of points to award.  The word `hello'
+following the colon refers to the expression name given in the grammar file.
+Finally, after the semicolon, a comment is given which is printed to the screen
+if either positive points are not added to the sum or negative points are.
+Comments are mandatory.
+
+\section{Bugs}
+
+Autograde has a peculiarity with the Java Scanner class.  When a Scanner
+object is closed, it closes System.in.  When System.in is closed, the automated
+file input feed given via the \texttt{-i} option no longer feeds into the
+program input stream. Typically this happens when more than one Scanner object
+is used in a Java program.  To avoid this behavior, it is best to stipulate
+that one Scanner object be created in main and passed to any methods which
+require it.
+
+\texttt{* Thank you for using \textbf{Autograde}.}
+
+\end{document}

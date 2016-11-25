@@ -1,0 +1,28 @@
+Features:
+
+
+  DONE:
+  ----
+  
+  1) Unit testing system
+  2) Kill of siblings capability
+     a) Basic capability
+  3) Named patterns
+  6) Positive Lookahead
+  
+  
+  TODO:
+  ----
+  
+  1) Unit testing on a wide variety of patterns
+  2) Kill of siblings capability
+     a) Basic capability
+     b) Advanced, which should ensure 
+        that the pattern a* never has more than 2 or 3
+        streams active.
+  3) Named patterns
+  4) PackRat capability (relies on 3)
+  5) Left recursion
+  6) Positive and negative Lookaheads
+  7) Coverage testing
+  

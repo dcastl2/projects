@@ -1,0 +1,6 @@
+for source in `ls $sources 2> /dev/null`
+do
+	classname=`echo $source | sed 's/\.java//'`
+	reset_logs "$classname.comp"
+	s_ex "Compiling $source" "javac $source"
+done

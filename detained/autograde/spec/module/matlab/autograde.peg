@@ -1,0 +1,26 @@
+skipper = [ \t\n]*
+
+int        = (-|)[0-9]+
+float      = (-|)[0-9]*.[0-9]+
+grade      = {int} | {float}
+alpha      = ([a-z]|[A-Z])([0-9|[a-z]|[A-Z])*
+expr       = {alpha}
+text       = ({alpha}| )
+comment    = "{text}"
+
+statement  = {grade} : {expr}; {comment}
+statements = {statement}+
+skipper = [ \t\n]*
+
+alpha       = ([a-z]|[A-Z])([a-z]|[A-Z]|[0-9])*
+var         = ({alpha}|_)+
+int         = (-|)[0-9]+
+float       = (-|)[0-9]*\.[0-9]+
+num         = {int} | {float}
+aop         = (\*|\+|-|\/)
+bop         = (!|)(>|<)(=|) | ((!|)=) 
+s           = [ \t\n]
+
+no_space    = (if|for|while)\(
+reverse_if  = if ({var} == {num})
+

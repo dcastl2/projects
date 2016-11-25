@@ -1,0 +1,6 @@
+for source in `ls $sources 2> /dev/null`
+do
+	classname=`echo $source | sed 's/\.java//'`
+	reset_logs "$classname.exec"
+	s_ex "Executing $source" "java $classname"
+done

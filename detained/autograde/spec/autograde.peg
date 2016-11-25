@@ -1,0 +1,12 @@
+skipper = [ \t\n]*
+
+int        = (-|)[0-9]+
+float      = (-|)[0-9]*.[0-9]+
+grade      = {int} | {float}
+alpha      = ([a-z]|[A-Z])([0-9|[a-z]|[A-Z])*
+expr       = {alpha}
+text       = ({alpha}| )
+comment    = "{text}"
+
+statement  = {grade} : {expr}; {comment}
+statements = {statement}+

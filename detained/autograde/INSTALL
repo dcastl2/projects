@@ -1,0 +1,4 @@
+Run:
+
+ ./install.sh (as root)
+ ./setup.sh   (as normal user)

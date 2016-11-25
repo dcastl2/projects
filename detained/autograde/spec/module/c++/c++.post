@@ -1,0 +1,11 @@
+for source in `ls $sources`
+do
+	exename=`echo $source | sed 's/\.cpp//'`
+	reset_logs "$exename.autograde"
+	s_ex "Grading source code, $source" \
+	     "java -jar $autogradedir/autograde.jar -c $autogradedir -a $coursenum/$assignnum -s source -m c++ -t $source"
+	s_ex "Grading execution output, $exename.exec.out" \
+	     "java -jar $autogradedir/autograde.jar -c $autogradedir -a $coursenum/$assignnum -s output -m c++ -t $exename"
+done
+
+cleanup_empty

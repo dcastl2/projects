@@ -1,0 +1,117 @@
+#!/bin/bash
+set -e
+
+
+source '/usr/lib/smartlog/smartlog.sh'
+echo ""
+
+
+##############################################################################
+# Set the default values.
+##############################################################################
+FULLNAME="User";
+NAMEHOST="test";
+USERNAME="user";
+PASSWORD="password";
+PACKAGES="package-lists/packages.list";
+TEMPLATE="pre-seed/template.cfg";
+RELEASE="TEST";
+
+
+##############################################################################
+# Print message and exit.
+##############################################################################
+usage() {
+	echo ""
+	echo "usage: ${BOLD}./vconfigure${NORMAL} [options]"
+	echo " -f  ${ULINE}fullname${NOLINE}"
+	echo " -h  ${ULINE}hostname${NOLINE}"
+	echo " -l  ${ULINE}package list${NOLINE}"
+	echo " -p  ${ULINE}password${NOLINE}"
+	echo " -r  ${ULINE}release${NOLINE}"
+	echo " -t  ${ULINE}template file${NOLINE}"
+	echo " -u  ${ULINE}username${NOLINE}"
+	echo ""
+}
+
+
+
+##############################################################################
+# Print message and exit.
+##############################################################################
+while getopts "f:h:l:p:u:" opt; do
+	case $opt in
+		f)
+			FULLNAME=$OPTARG;
+			;;
+		h)
+			NAMEHOST=$OPTARG;
+			;;
+		p)
+			PASSWORD=$OPTARG;
+			;;
+		l)
+			PACKAGES=$OPTARG;
+			;;
+		r)
+			RELEASE=$OPTARG;
+			;;
+		t)
+			TEMPLATE=$OPTARG;
+			;;
+		u)
+			USERNAME=$OPTARG;
+			;;
+	esac
+done
+PRESEED=pre-seed/$RELEASE.cfg
+
+
+
+##############################################################################
+# Check if preseed template is present.
+  log "Checking for template";
+##############################################################################
+if [ ! -f $TEMPLATE ]
+then
+	fail; alert "Template file $TEMPLATE not found"; usage; exit 1
+else
+	ok;
+fi
+
+
+
+##############################################################################
+# Check if the package listing exists.
+  log "Checking package file";
+##############################################################################
+if [ ! -f $PACKAGES ] 
+then
+	fail; alert "Default $PACKAGES does not exist or \$PACKAGES not set"; usage; exit 1
+else
+	ok;
+fi
+PACKS=`sed 's/\n/ /' $PACKAGES`;
+
+
+
+##############################################################################
+# Do the substitutions.
+  log "Performing substitutions"
+##############################################################################
+
+cp $TEMPLATE $PRESEED
+
+if sed -i "s/\[username\]/$USERNAME/"        $PRESEED  \
+&& sed -i "s/\[password\]/$PASSWORD/"        $PRESEED  \
+&& sed -i "s/\[fullname\]/$FULLNAME/"        $PRESEED  \
+&& sed -i "s/\[hostname\]/$NAMEHOST/"        $PRESEED  \
+&& sed -i "s/\[packages\]/`echo $PACKS`/"    $PRESEED;
+then
+	ok;
+else
+	fail;
+fi
+
+
+echo ""

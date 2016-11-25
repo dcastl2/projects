@@ -1,0 +1,11 @@
+for source in `ls $sources`
+do
+	name=`echo $source | sed 's/\.m//'`
+	reset_logs "$name.autograde"
+	s_ex "Grading source, $source" \
+	     "java -jar $autogradedir/autograde.jar -c $autogradedir -a $coursenum/$assignnum -s source -m java -t $source"
+	s_ex "Grading output, $classname.out" \
+	     "java -jar $autogradedir/autograde.jar -c $autogradedir -a $coursenum/$assignnum -s output -m java -t $classname.exec.out"
+done
+
+cleanup_empty

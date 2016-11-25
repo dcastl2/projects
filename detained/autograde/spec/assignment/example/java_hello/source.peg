@@ -1,0 +1,3 @@
+sig   = public static void main
+args  = String\[\] args
+class = public class Hello

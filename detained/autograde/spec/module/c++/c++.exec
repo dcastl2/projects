@@ -1,0 +1,6 @@
+for source in `ls $sources 2> /dev/null`
+do
+	exename=`echo $source | sed 's/\.cpp//'`
+	reset_logs "$exename.exec"
+	s_ex "Executing $source" "./$exename"
+done

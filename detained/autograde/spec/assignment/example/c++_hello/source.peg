@@ -1,0 +1,2 @@
+sig    = int main
+coutop = std::cout

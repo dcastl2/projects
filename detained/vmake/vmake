@@ -1,0 +1,479 @@
+#!/bin/bash
+# TODO: allow copying module
+
+source "/usr/lib/smartlog/smartlog.sh"
+# clear; echo ""
+
+
+
+##############################################################################
+# Define Debian CD URL, custom files, VM creation parameters.
+##############################################################################
+BASE="http://cdimage.debian.org"
+BIT="32"
+REL="7.8.0"
+
+PRESEED="pre-seed.cfg"
+POSTSEED="post-seed.sh"
+POSTINSTALL="post-install.sh"
+
+MEM=1024
+CPUS=1
+SIZE=16384
+
+
+
+##############################################################################
+  log "Setting options"
+##############################################################################
+while getopts "c:i:m:n:p:q:r:s:t:z" opt; do
+	case $opt in
+		c)
+			CPUS=$OPTARG
+			;;
+		d)
+			COPYDIR=$OPTARG
+			;;
+		i)
+			POSTINSTALL=$OPTARG
+			;;
+		m)
+			MEM=$OPTARG
+			;;
+		n)
+			REL=$OPTARG
+			;;
+		p)
+			PRESEED=$OPTARG
+			;;
+		q)
+			POSTSEED=$OPTARG
+			;;
+		r)
+			RELEASE=$OPTARG
+			;;
+		s)
+			SIZE=$OPTARG
+			;;
+		t)
+			BIT=$OPTARG
+			;;
+		z)
+			NOSTART=true
+			;;
+		?)
+			usage
+			exit 1
+			;;
+	esac
+done
+
+if [ "$BIT" == "64" ]
+then
+	TYPE="amd64"
+elif [ "$BIT" == "32" ]
+then
+	TYPE="i386"
+else
+	fail
+	usage
+	exit 1
+fi
+
+ok
+DEB="$BASE/debian-cd/$REL/$TYPE/iso-cd/debian-$REL-$TYPE-netinst.iso"
+
+
+thanks() {
+	helper "Thank you for using ${BOLD}vmake${NORMAL}.";
+	echo ""
+}
+
+##############################################################################
+# Check validity of given URL.
+##############################################################################
+check_url() {
+	log "Checking image URL";
+	if ! command -v curl > /dev/null
+	then
+		fail
+		warn "You need curl for the check_url() function"
+		return 1
+	fi
+	URL="$1"
+	FLAGS="--silent --head --write-out"
+	STATUS=$(curl -o /dev/null $FLAGS '%{http_code}' $URL 2>> error.log)
+	if [ "$STATUS" -eq "200" -o "$STATUS" -eq "302" ]
+	then
+		ok;   return 0
+	else
+		fail; return 1
+	fi
+}
+
+
+
+##############################################################################
+# Check file existence.
+##############################################################################
+
+check_file_by_var() {
+	log "Checking $1 file";
+	if [ ! -f $2 ]
+	then
+		fail; die "$1 file not found"
+	else
+		ok
+	fi
+}
+
+check_dir_by_var() {
+	log "Checking $1 dir";
+	if [ ! -d $2 ]
+	then
+		fail; warn "$1 directory not found"
+	else
+		ok
+	fi
+}
+
+download() {
+	ISO=`echo $2 | sed 's/.*iso-cd\/\(.*\)/\1/'`
+	if [ -f $ISO ]
+	then
+		return 0;
+	fi
+	if check_url $2
+	then
+		log "Downloading $1"; echo ""
+		if wget -q $2 
+		then
+			ok
+		else
+			fail
+		fi
+	fi
+}
+
+
+
+##############################################################################
+# Print usage.
+##############################################################################
+usage() {
+	BOLD=`tput bold`
+	NORM=`tput sgr0`
+	LINE=`tput smul`
+	NOLI=`tput rmul`
+	echo "";
+	echo "Usage: ${BOLD}setup.sh${NORM} [option]";
+	echo "Options:";
+	echo "  -r  ${LINE}release name${NOLI}";
+	echo "  -c  ${LINE}vm cpus${NOLI}";
+	echo "  -m  ${LINE}vm memory${NOLI}";
+	echo "  -s  ${LINE}vm disk size, in MB${NOLI}";
+	echo "  -n  ${LINE}debian release #${NOLI}";
+	echo "  -t  ${LINE}type${NOLI} ('amd64')";
+	echo "  -p  ${LINE}preseed file${NOLI}"; 
+	echo "  -q  ${LINE}post-install script${NOLI}"; 
+	echo "";
+}
+
+
+
+##############################################################################
+# Check that commands are available.
+  log "Checking commands";
+##############################################################################
+bold=`tput bold`
+norm=`tput sgr0`
+commands=( bsdtar curl perl md5sum VBoxManage wget tput )
+for command in "${commands[@]}"
+do
+	if ! command -v $command > /dev/null
+	then
+		fail; die "This script requires you to install ${bold}$command${norm}"
+	fi
+done
+
+
+
+##############################################################################
+# Check arguments.
+  ok; log "Checking args";
+##############################################################################
+if [ -z $RELEASE ]
+then
+	fail; 
+	alert "A release name is required";
+	usage; 
+	exit 1
+fi
+
+
+
+##############################################################################
+# Check release.
+  ok; log "Checking name";
+##############################################################################
+if [ -z $RELEASE ]
+then
+  fail; die "Name must be specified with -r option";
+else
+  ok
+  PRESEED="pre-seed/$RELEASE.cfg";
+  POSTSEED="post-seed/$RELEASE.sh";
+  POSTINSTALL="post-install/$RELEASE.sh";
+  COPYDIR="pre-copy/$RELEASE";
+fi
+
+
+
+##############################################################################
+# Check files.
+##############################################################################
+check_file_by_var "PRESEED"     $PRESEED
+check_file_by_var "POSTSEED"    $POSTSEED
+check_file_by_var "POSTINSTALL" $POSTINSTALL
+
+
+
+##############################################################################
+# Prep distribution directory.
+  log "Preparing directory";
+##############################################################################
+if [ -d $RELEASE ]
+then
+  if rm -rf $RELEASE 2>> error.log
+  then
+  	ok
+  	mkdir $RELEASE
+  else
+  	fail; warn "Cannot remove directory"; checklog
+  fi
+else
+  	ok
+  	mkdir $RELEASE
+fi
+
+
+
+##############################################################################
+# Download CD image if it exists.
+##############################################################################
+download "Debian image" $DEB
+
+
+
+##############################################################################
+# Untar CD image if it exists.
+##############################################################################
+ISO="debian-$REL-$TYPE-netinst.iso"
+if check_file_by_var "ISO" $ISO
+then
+	s_ex "Unpacking ISO" \
+	"bsdtar -C $RELEASE -xf $ISO"
+fi
+
+
+##############################################################################
+# Copy what is in the pre-copy dir into the release directory.
+##############################################################################
+if check_dir_by_var  "COPYDIR" $COPYDIR
+then
+	s_ex "Copying $COPYDIR" \
+	"cp -r $COPYDIR/* $RELEASE/"
+fi
+
+
+##############################################################################
+# Make the directory writeable.
+  log "Injecting files"
+##############################################################################
+chmod -R +w $RELEASE
+cd $RELEASE
+
+
+
+##############################################################################
+# Flag for auto-installation, set timeout to 3.
+##############################################################################
+PRESEEDs=`echo $PRESEED | sed 's/.*\///'`
+AUTO="initrd\.gz auto-install\/enable=true preseed\/file=\/cdrom\/$PRESEEDs"
+perl -pi -e "s/initrd\.gz/$AUTO/"    isolinux/txt.cfg       2>> ../error.log
+perl -pi -e 's/timeout 0/timeout 3/' isolinux/isolinux.cfg  2>> ../error.log
+cp ../$PRESEED ../$POSTSEED .                               2>> ../error.log
+
+
+
+##############################################################################
+# Copy post-installation script.
+##############################################################################
+mkdir post                2>> ../error.log
+cp ../$POSTSEED    post/  2>> ../error.log
+cp ../$POSTINSTALL post/  2>> ../error.log
+ok
+
+
+
+##############################################################################
+# MD5.
+  log "Computing MD5 checksum"
+##############################################################################
+MD5=md5sum.txt
+md5sum `find ! -name $MD5 ! -path "./isolinux/*" -follow -type f 2>> ../error.log` > $MD5
+cd ..
+
+
+
+##############################################################################
+# Create ISO.
+  ok; log "Re-generating ISO"
+##############################################################################
+FLAGS="-r -J -no-emul-boot -boot-load-size 4 -boot-info-table"
+if genisoimage -o $RELEASE.iso $FLAGS -b isolinux/isolinux.bin \
+   -c isolinux/boot.cat $RELEASE 2>> error.log
+then
+	ok
+else
+	fail; error "Failed to generate image"
+fi
+
+
+
+##############################################################################
+# Clean up.
+  log "Cleaning up"
+##############################################################################
+if rm -rf $RELEASE 2>> error.log
+then
+	ok
+else
+	fail; alert "Failed to clean directory";
+fi
+
+
+
+##############################################################################
+# Create VM with Debian OS and specified MEM and CPUS.
+  log "Creating VM"
+##############################################################################
+CMD="VBoxManage createvm --name $RELEASE --register"
+if $CMD > /dev/null 2> error.log
+then
+	ok
+else
+	fail;
+	warn "VM may already exist."
+	prompt "Unregister/delete the old VM (y/n)?"
+	read answer
+	if [ "$answer" == "y" ]
+	then
+		log "Deleting old VM";
+		CMD="VBoxManage unregistervm $RELEASE --delete"
+		if $CMD > /dev/null 2> error.log
+		then
+			ok
+		else
+			fail; checklog; exit 1
+		fi
+		s_ex "Creating VM" \
+		"VBoxManage createvm --name  $RELEASE --register" 2>&1 /dev/null
+	else
+		endtip "Execution halted";
+	fi
+fi
+
+
+
+##############################################################################
+# Create VM with Debian OS and specified MEM and CPUS.
+##############################################################################
+if [ "$BIT" == "64" ]
+then
+	OSTYPE="_64"
+else
+	OSTYPE=""
+fi
+s_ex "Specifying VM BIOS behavior" \
+"VBoxManage modifyvm            $RELEASE --ostype       Debian$OSTYPE
+					--biosbootmenu disabled  
+                                        --acpi         on        
+					--rtcuseutc    on" 2>&1 error.log
+
+s_ex "Specifying VM spec parameters" \
+"VBoxManage modifyvm            $RELEASE --memory $MEM             
+                                        --cpus   $CPUS            
+					--vram   64              
+					--ioapic on               
+					--usb    on      " 2>&1 error.log
+
+
+
+##############################################################################
+# Create hard drives and a DVD drive.
+##############################################################################
+s_ex "Adding SATA controller" \
+"VBoxManage storagectl          $RELEASE --name       'SATA_Controller' 
+	                                --add         sata             
+					--controller  IntelAhci" 2>&1 error.log
+
+s_ex "Adding IDE controller" \
+"VBoxManage storagectl          $RELEASE --name       'IDE_Controller'   
+                                        --add         ide              
+					--controller  PIIX4" 2>&1 error.log
+
+s_ex "Adding IDE DVD ROM controller" \
+"VBoxManage storageattach       $RELEASE --storagectl 'IDE_Controller'  
+                                        --port        0                
+					--device      0                
+					--type        dvddrive         
+			                --medium   `pwd`/$RELEASE.iso" 2>&1 error.log
+
+
+
+##############################################################################
+# Specify size of hard drive
+##############################################################################
+s_ex "Creating hard drive, specifying size" \
+"VBoxManage createhd                     --filename    $RELEASE.vdi     
+                                         --size        $SIZE"  2>&1 error.log
+
+s_ex "Attaching hard drive" \
+"VBoxManage storageattach       $RELEASE --storagectl 'SATA_Controller' 
+                                        --port        0                
+					--device      0                
+					--type        hdd              
+					--medium      $RELEASE.vdi"   2>&1 error.log
+
+
+
+##############################################################################
+# Create network interface.
+##############################################################################
+s_ex "Attaching hard drive" \
+"VBoxManage modifyvm            $RELEASE --nic1     nat                 
+                                        --nictype1 82540EM             " 2>&1 error.log
+
+s_ex "Enabling audio" \
+"VBoxManage modifyvm            $RELEASE --audio    alsa"  2>&1 error.log
+
+
+
+##############################################################################
+# Start the VM.
+##############################################################################
+if [ -z $NOSTART ] 
+then
+	log "Starting VM";
+	if VBoxManage startvm $RELEASE > /dev/null 2>> error.log
+	then
+		ok
+	else
+		fail; error "VM failed to start"
+	fi
+else
+	tip "You can start the VM with: VBoxManage startvm $RELEASE"
+fi
+
+thanks

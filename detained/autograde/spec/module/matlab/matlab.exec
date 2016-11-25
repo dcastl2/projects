@@ -1,0 +1,6 @@
+for source in `ls $sources 2> /dev/null`
+do
+	name=`echo $source | sed 's/\.m//'`
+	reset_logs "$name.exec"
+	s_ex "Executing $source" "octave -q $source"
+done

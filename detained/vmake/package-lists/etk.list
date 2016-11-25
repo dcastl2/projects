@@ -1,0 +1,16 @@
+g++
+gfortran
+git
+libatlas-base-dev
+libfftw3-dev
+libgsl0-dev
+libhdf5-serial-dev
+libjpeg-dev
+libopenmpi-dev
+libssl-dev
+make
+openmpi-bin
+perl
+python
+subversion
+sudo

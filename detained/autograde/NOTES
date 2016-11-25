@@ -1,0 +1,8 @@
+Contents:
+
+  install.sh -- installs autograde, should be run as root
+  setup.sh   -- sets up configuration per-user, should be run as regular user
+
+  content/ -- example content (submitted assignments)
+  spec/    -- specification directory, where all per-module scripts live
+  src/     -- Java source code for the parser-grader
